@@ -1,8 +1,7 @@
 import { MemoryGame } from "./core.js"
 
 const game = MemoryGame.createGame({
-  contents: new Set(["a", "b", "c", "d", "e", "f", "g", "h"]),
-  duration: 10
+  contents: new Set(["a", "b", "c", "d", "e", "f", "g", "h"])
 })
 
 document.body.appendChild(game)

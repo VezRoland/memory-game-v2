@@ -14,6 +14,10 @@ export class MemoryGame extends HTMLDivElement {
     super()
   }
 
+  connectedCallback() {
+    this.classList.add("memory-game")
+  }
+
   disconnectedCallback() {
     this.stopTimer()
   }
@@ -76,6 +80,7 @@ export class MemoryGame extends HTMLDivElement {
 type MemoryCardContent = UnwrapIterable<GameArgs["contents"]>
 
 class MemoryCard extends HTMLDivElement {
+  flipped = false
   #content: MemoryCardContent | null = null
 
   constructor() {
@@ -83,15 +88,16 @@ class MemoryCard extends HTMLDivElement {
   }
 
   connectedCallback() {
-    this.textContent = this.#content
+    const template = document.getElementById(
+      "memory-card-template"
+    ) as HTMLTemplateElement
+
+    this.appendChild(template.content.cloneNode(true))
+    this.classList.add("card")
   }
 
   setContent(content: MemoryCardContent) {
     this.#content = content
-  }
-
-  compare(card: MemoryCard) {
-    return card.#content === this.#content
   }
 
   static createCard(content: MemoryCardContent) {
@@ -100,6 +106,30 @@ class MemoryCard extends HTMLDivElement {
     card.setContent(content)
 
     return card
+  }
+
+  compare(card: MemoryCard) {
+    return card.#content === this.#content
+  }
+
+  flip(direction: EffectTiming["direction"] = "normal") {
+    const inside = this.querySelector(".card-inside")
+    if (!inside) return
+
+    const animation = inside.animate(
+      [
+        { transform: "rotateY(0deg)" },
+        { transform: "rotateY(180deg)" }
+      ],
+      {
+        duration: 600,
+        fill: "forwards",
+        easing: "ease-in-out",
+        direction
+      }
+    )
+
+    return animation.finished
   }
 }
 
