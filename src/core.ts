@@ -6,6 +6,9 @@ interface GameArgs {
 type UnwrapIterable<T> = T extends Iterable<infer U> ? U : T
 
 export class MemoryGame extends HTMLDivElement {
+  #cardsToBeCompared: MemoryCard[] = []
+  #flippedCards: MemoryCard[] = []
+
   #duration: number | null = null
   #currentTime: number = 0
   #timer: ReturnType<typeof setInterval> | null = null
@@ -34,6 +37,32 @@ export class MemoryGame extends HTMLDivElement {
       const j = Math.floor(Math.random() * (i + 1))
       this.appendChild(this.childNodes.item(j))
     }
+  }
+
+  async flipCard(card: MemoryCard) {
+    if (
+      this.#cardsToBeCompared.length === 2 ||
+      this.#cardsToBeCompared.includes(card) ||
+      this.#flippedCards.includes(card)
+    )
+      return
+
+    this.#cardsToBeCompared.push(card)
+    await card.flip()
+
+    const [cardA, cardB] = this.#cardsToBeCompared
+
+    if (!cardA || !cardB) return
+
+    if (cardA.compare(cardB)) this.#flippedCards.push(cardA, cardB)
+    else {
+      await Promise.all([
+        cardA.flip({ direction: "reverse" }),
+        cardB.flip({ direction: "reverse" })
+      ])
+    }
+
+    this.#cardsToBeCompared = []
   }
 
   private changeCurrentTime(newTime: (currentTime: number) => number) {
@@ -94,6 +123,12 @@ class MemoryCard extends HTMLDivElement {
 
     this.appendChild(template.content.cloneNode(true))
     this.classList.add("card")
+
+    this.addEventListener("click", this.handleFlip)
+  }
+
+  disconnectedCallback() {
+    this.removeEventListener("click", this.handleFlip)
   }
 
   setContent(content: MemoryCardContent) {
@@ -112,24 +147,36 @@ class MemoryCard extends HTMLDivElement {
     return card.#content === this.#content
   }
 
-  flip(direction: EffectTiming["direction"] = "normal") {
+  async flip({
+    duration = 300,
+    direction = "normal"
+  }: {
+    duration?: EffectTiming["duration"]
+    direction?: EffectTiming["direction"]
+  } = {}) {
     const inside = this.querySelector(".card-inside")
-    if (!inside) return
+    const back = this.querySelector(".card-back")
+    if (!inside || !back) return
 
     const animation = inside.animate(
-      [
-        { transform: "rotateY(0deg)" },
-        { transform: "rotateY(180deg)" }
-      ],
+      [{ transform: "rotateY(0deg)" }, { transform: "rotateY(180deg)" }],
       {
-        duration: 600,
+        duration,
         fill: "forwards",
         easing: "ease-in-out",
         direction
       }
     )
 
+    if (direction === "normal") back.textContent = this.#content
+    else back.textContent = null
+
     return animation.finished
+  }
+
+  private handleFlip() {
+    const parent = this.parentNode as MemoryGame
+    parent.flipCard(this)
   }
 }
 

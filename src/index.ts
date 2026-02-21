@@ -1,7 +1,7 @@
 import { MemoryGame } from "./core.js"
 
 const game = MemoryGame.createGame({
-  contents: new Set(["a", "b", "c", "d", "e", "f", "g", "h"])
+  contents: new Set(["🍑", "🍎", "🍇", "🍉", "🍌", "🫐", "🥝", "🥥"])
 })
 
 document.body.appendChild(game)
