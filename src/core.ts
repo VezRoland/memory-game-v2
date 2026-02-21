@@ -32,7 +32,7 @@ export class MemoryGame extends HTMLDivElement {
     }
   }
 
-  private changeCurrentTime(newTime: (currentTime:number) => number) {
+  private changeCurrentTime(newTime: (currentTime: number) => number) {
     this.#currentTime = newTime(this.#currentTime)
 
     const event = new CustomEvent("timechange", {
@@ -45,11 +45,14 @@ export class MemoryGame extends HTMLDivElement {
   }
 
   startTimer(duration: number | null = null) {
-    if (!duration || this.#duration) return
-    this.changeCurrentTime(() => (this.#duration ?? duration) * 100)
+    let targetDuration = duration ?? this.#duration
+    if (!targetDuration) return
+
+    this.#duration = targetDuration
+    this.changeCurrentTime(() => targetDuration * 100)
 
     this.#timer = setInterval(() => {
-      !this.changeCurrentTime((t) => (t -= 1)) && this.stopTimer()
+      !this.changeCurrentTime((t) => t - 1) && this.stopTimer()
     }, 10)
   }
 
@@ -62,7 +65,7 @@ export class MemoryGame extends HTMLDivElement {
     const game = document.createElement("div", { is: "memory-game" }) as MemoryGame
 
     const flatContents = Array.from(contents)
-    game.addCards(Array.from([...flatContents, ...flatContents]))
+    game.addCards([...flatContents, ...flatContents])
     game.shuffleCards()
     game.startTimer(duration)
 
