@@ -6,8 +6,10 @@ interface GameArgs {
 type UnwrapIterable<T> = T extends Iterable<infer U> ? U : T
 
 export class MemoryGame extends HTMLDivElement {
-  #cardsToBeCompared: MemoryCard[] = []
-  #flippedCards: MemoryCard[] = []
+  #isComparingCards = false
+
+  #cardsToBeCompared: Set<MemoryCard> = new Set()
+  #flippedCards: Set<MemoryCard> = new Set()
 
   #duration: number | null = null
   #currentTime: number = 0
@@ -40,22 +42,19 @@ export class MemoryGame extends HTMLDivElement {
   }
 
   async flipCard(card: MemoryCard) {
-    if (
-      this.#cardsToBeCompared.length >= 2 ||
-      this.#cardsToBeCompared.includes(card) ||
-      this.#flippedCards.includes(card)
-    )
-      return
+    if (this.#isComparingCards || this.#cardsToBeCompared.has(card)) return
 
-    this.#cardsToBeCompared.push(card)
-    await card.flip()
-
+    this.#cardsToBeCompared.add(card)
     const [cardA, cardB] = this.#cardsToBeCompared
 
-    if (!cardA || !cardB) return
+    if (!cardA || !cardB) return await card.flip()
+    else this.#isComparingCards = true
+
+    await card.flip()
 
     if (cardA.compare(cardB)) {
-      this.#flippedCards.push(cardA, cardB)
+      this.#flippedCards.add(cardA)
+      this.#flippedCards.add(cardB)
     } else {
       await Promise.all([
         cardA.flip({ delay: 500, direction: "reverse" }),
@@ -63,7 +62,8 @@ export class MemoryGame extends HTMLDivElement {
       ])
     }
 
-    this.#cardsToBeCompared = []
+    this.#isComparingCards = false
+    this.#cardsToBeCompared.clear()
   }
 
   private changeCurrentTime(newTime: (currentTime: number) => number) {

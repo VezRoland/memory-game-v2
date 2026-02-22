@@ -9,5 +9,3 @@ document.body.appendChild(game)
 game.addEventListener("timechange", (event) => {
   console.log(event.detail.currentTime)
 })
-
-console.log(game)
