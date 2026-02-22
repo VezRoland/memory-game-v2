@@ -41,7 +41,7 @@ export class MemoryGame extends HTMLDivElement {
 
   async flipCard(card: MemoryCard) {
     if (
-      this.#cardsToBeCompared.length === 2 ||
+      this.#cardsToBeCompared.length >= 2 ||
       this.#cardsToBeCompared.includes(card) ||
       this.#flippedCards.includes(card)
     )
@@ -54,11 +54,12 @@ export class MemoryGame extends HTMLDivElement {
 
     if (!cardA || !cardB) return
 
-    if (cardA.compare(cardB)) this.#flippedCards.push(cardA, cardB)
-    else {
+    if (cardA.compare(cardB)) {
+      this.#flippedCards.push(cardA, cardB)
+    } else {
       await Promise.all([
-        cardA.flip({ direction: "reverse" }),
-        cardB.flip({ direction: "reverse" })
+        cardA.flip({ delay: 500, direction: "reverse" }),
+        cardB.flip({ delay: 500, direction: "reverse" })
       ])
     }
 
@@ -149,9 +150,11 @@ class MemoryCard extends HTMLDivElement {
 
   async flip({
     duration = 300,
+    delay = 0,
     direction = "normal"
   }: {
     duration?: EffectTiming["duration"]
+    delay?: EffectTiming["delay"]
     direction?: EffectTiming["direction"]
   } = {}) {
     const inside = this.querySelector(".card-inside")
@@ -162,6 +165,7 @@ class MemoryCard extends HTMLDivElement {
       [{ transform: "rotateY(0deg)" }, { transform: "rotateY(180deg)" }],
       {
         duration,
+        delay,
         fill: "forwards",
         easing: "ease-in-out",
         direction
@@ -169,9 +173,10 @@ class MemoryCard extends HTMLDivElement {
     )
 
     if (direction === "normal") back.textContent = this.#content
-    else back.textContent = null
 
-    return animation.finished
+    await animation.finished
+
+    if (direction === "reverse") back.textContent = null
   }
 
   private handleFlip() {
