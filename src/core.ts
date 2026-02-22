@@ -42,7 +42,12 @@ export class MemoryGame extends HTMLDivElement {
   }
 
   async flipCard(card: MemoryCard) {
-    if (this.#isComparingCards || this.#cardsToBeCompared.has(card)) return
+    if (
+      this.#isComparingCards ||
+      this.#cardsToBeCompared.has(card) ||
+      this.#flippedCards.has(card)
+    )
+      return
 
     this.#cardsToBeCompared.add(card)
     const [cardA, cardB] = this.#cardsToBeCompared
@@ -55,6 +60,8 @@ export class MemoryGame extends HTMLDivElement {
     if (cardA.compare(cardB)) {
       this.#flippedCards.add(cardA)
       this.#flippedCards.add(cardB)
+      cardA.hide()
+      cardB.hide()
     } else {
       await Promise.all([
         cardA.flip({ delay: 500, direction: "reverse" }),
@@ -177,6 +184,24 @@ class MemoryCard extends HTMLDivElement {
     await animation.finished
 
     if (direction === "reverse") back.textContent = null
+  }
+
+  async hide() {
+    const animation = this.animate(
+      [
+        { opacity: "100%", scale: "100%" },
+        { opacity: "0%", scale: "25%" }
+      ],
+      {
+        duration: 300,
+        fill: "forwards",
+        easing: "ease-in-out"
+      }
+    )
+
+    await animation.finished
+
+    this.classList.add("card-hidden")
   }
 
   private handleFlip() {

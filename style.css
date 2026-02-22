@@ -60,3 +60,7 @@ body {
   transform: rotateY(180deg);
   background: var(--accent);
 }
+
+.card-hidden {
+  visibility: hidden;
+}
