@@ -5,14 +5,29 @@ interface GameArgs {
 
 type UnwrapIterable<T> = T extends Iterable<infer U> ? U : T
 
+type DistributiveOmit<T, K extends keyof any> = T extends any ? Omit<T, K> : never
+
+export type GameEndState =
+  | {
+      success: true
+      statistics: Record<string, string>
+    }
+  | {
+      success: false
+      reason: GameOverReason
+      statistics: Record<string, string>
+    }
+
+type GameOverReason = "reachedTimeLimit" | "reachedFlipLimit"
+
 export class MemoryGame extends HTMLDivElement {
   #isComparingCards = false
 
   #cardsToBeCompared: Set<MemoryCard> = new Set()
   #flippedCards: Set<MemoryCard> = new Set()
 
-  #duration: number | null = null
-  #currentTime: number = 0
+  #duration: Timestamp = new Timestamp(0)
+  #currentTime: Timestamp = new Timestamp(0)
   #timer: ReturnType<typeof setInterval> | null = null
 
   constructor() {
@@ -60,8 +75,7 @@ export class MemoryGame extends HTMLDivElement {
     if (cardA.compare(cardB)) {
       this.#flippedCards.add(cardA)
       this.#flippedCards.add(cardB)
-      cardA.hide()
-      cardB.hide()
+      await Promise.all([cardA.hide(), cardB.hide()])
     } else {
       await Promise.all([
         cardA.flip({ delay: 500, direction: "reverse" }),
@@ -71,10 +85,13 @@ export class MemoryGame extends HTMLDivElement {
 
     this.#isComparingCards = false
     this.#cardsToBeCompared.clear()
+
+    if (this.#flippedCards.size === this.childNodes.length)
+      this.endGame({ success: true })
   }
 
   private changeCurrentTime(newTime: (currentTime: number) => number) {
-    this.#currentTime = newTime(this.#currentTime)
+    this.#currentTime.setTime(newTime(this.#currentTime.getTime()))
 
     const event = new CustomEvent("timechange", {
       detail: { currentTime: this.#currentTime }
@@ -82,18 +99,22 @@ export class MemoryGame extends HTMLDivElement {
 
     this.dispatchEvent(event)
 
-    return this.#currentTime > 0
+    return this.#currentTime.getTime() > 0
   }
 
   startTimer(duration: number | null = null) {
-    let targetDuration = duration ?? this.#duration
-    if (!targetDuration) return
+    this.stopTimer()
 
-    this.#duration = targetDuration
-    this.changeCurrentTime(() => targetDuration * 100)
+    if (duration !== null) {
+      this.#duration.setTime(duration)
+      this.#currentTime.setTime(duration)
+    }
 
     this.#timer = setInterval(() => {
-      !this.changeCurrentTime((t) => t - 1) && this.stopTimer()
+      if (!this.changeCurrentTime((t) => t - 10)) {
+        this.stopTimer()
+        this.endGame({ success: false, reason: "reachedTimeLimit" })
+      }
     }, 10)
   }
 
@@ -111,6 +132,20 @@ export class MemoryGame extends HTMLDivElement {
     game.startTimer(duration)
 
     return game
+  }
+
+  endGame(state: DistributiveOmit<GameEndState, "statistics">) {
+    const event = new CustomEvent("gameover", {
+      detail: {
+        ...state,
+        statistics: {
+          duration: this.#duration,
+          timeElapsed: this.#currentTime
+        }
+      }
+    })
+
+    setTimeout(() => this.dispatchEvent(event), 10)
   }
 }
 
@@ -207,6 +242,45 @@ class MemoryCard extends HTMLDivElement {
   private handleFlip() {
     const parent = this.parentNode as MemoryGame
     parent.flipCard(this)
+  }
+}
+
+export class Timestamp {
+  #ms = 0
+  #lastFormattedSeconds = -1
+  #formattedCache = ""
+
+  constructor(ms: number) {
+    this.#ms = ms
+  }
+
+  getTime() {
+    return this.#ms
+  }
+
+  setTime(ms: number) {
+    this.#ms = ms
+  }
+
+  getFormattedTime() {
+    if (!this.hasSecondsChanged()) return this.#formattedCache
+
+    this.#lastFormattedSeconds = Math.ceil(this.#ms / 1000)
+    this.#formattedCache = this.#format()
+
+    return this.#formattedCache
+  }
+
+  hasSecondsChanged() {
+    return Math.ceil(this.#ms / 1000) !== this.#lastFormattedSeconds
+  }
+
+  #format() {
+    const totalDisplaySeconds = Math.ceil(this.#ms / 1000)
+    const minutes = Math.floor(totalDisplaySeconds / 60)
+    const seconds = totalDisplaySeconds % 60
+
+    return `${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`
   }
 }
 
